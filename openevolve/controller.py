@@ -8,11 +8,13 @@ import os
 import signal
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from openevolve.config import Config, load_config
 from openevolve.database import Program, ProgramDatabase
+from openevolve.evaluation_result import EvaluationResult
 from openevolve.evaluator import Evaluator
 from openevolve.llm.ensemble import LLMEnsemble
 from openevolve.prompt.sampler import PromptSampler
@@ -73,7 +75,7 @@ class OpenEvolve:
     def __init__(
         self,
         initial_program_path: str,
-        evaluation_file: str,
+        evaluate_function: Callable[[str], EvaluationResult],
         config_path: Optional[str] = None,
         config: Optional[Config] = None,
         output_dir: Optional[str] = None,
@@ -153,12 +155,12 @@ class OpenEvolve:
 
         self.evaluator = Evaluator(
             self.config.evaluator,
-            evaluation_file,
+            evaluate_function,
             self.llm_evaluator_ensemble,
             self.evaluator_prompt_sampler,
             database=self.database,
         )
-        self.evaluation_file = evaluation_file
+        self.evaluate_function = evaluate_function
 
         logger.info(f"Initialized OpenEvolve with {initial_program_path}")
 
@@ -274,7 +276,7 @@ class OpenEvolve:
         # Initialize improved parallel processing
         try:
             self.parallel_controller = ProcessParallelController(
-                self.config, self.evaluation_file, self.database
+                self.config, self.evaluate_function, self.database
             )
 
             # Set up signal handlers for graceful shutdown
